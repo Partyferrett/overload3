@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#080A0E" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Overload" />
+  <title>Overload</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #080A0E;
+      --bg2: #13171F;
+      --card: #1A1F2A;
+      --elevated: #222833;
+      --ice: #4FC3F7;
+      --ice-dark: #29B6F6;
+      --text: #FFFFFF;
+      --text2: #A0AEC0;
+      --muted: #718096;
+      --border: #2D3748;
+      --border2: #4A5568;
+      --error: #F56565;
+      --overlay: rgba(8,10,14,0.88);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body, #root {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overscroll-behavior: none;
+    }
+    body {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+    input { font-family: inherit; }
+    .hide-scroll::-webkit-scrollbar { display: none; }
+    .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.3s ease forwards; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.0/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    const colors = {
+      bg: '#080A0E', bg2: '#13171F', card: '#1A1F2A', elevated: '#222833',
+      ice: '#4FC3F7', iceDark: '#29B6F6', iceLight: '#81D4FA',
+      text: '#FFFFFF', text2: '#A0AEC0', muted: '#718096',
+      border: '#2D3748', border2: '#4A5568', error: '#F56565', overlay: 'rgba(8,10,14,0.88)'
+    };
+    const font = { heading: "'Bebas Neue', sans-serif", body: "'DM Sans', system-ui, sans-serif" };
+
+    const GOALS = [
+      { id: 'strength', title: 'Get Stronger', description: 'Build maximal force with heavy compounds', sets: '3–5', reps: '1–5', rest: '3–5 min', progression: '+5lbs compounds weekly' },
+      { id: 'muscle', title: 'Build Muscle', description: 'Hypertrophy through progressive volume', sets: '3–4', reps: '8–12', rest: '60–90 sec', progression: 'Volume first, then weight' },
+      { id: 'endurance', title: 'Build Endurance', description: 'Work capacity and metabolic conditioning', sets: '2–3', reps: '15–20', rest: '30–45 sec', progression: 'Reps first, then weight' },
+    ];
+    const EXPERIENCE = [
+      { id: 'beginner', title: 'Beginner', description: 'New to structured training or returning after a long break' },
+      { id: 'intermediate', title: 'Intermediate', description: 'Consistent training for 1–3 years, solid form' },
+      { id: 'advanced', title: 'Advanced', description: 'Multiple years of progressive overload experience' },
+    ];
+    const EQUIPMENT = [
+      { id: 'barbell_rack', title: 'Barbell & Rack', description: 'Squat rack, bench, barbell' },
+      { id: 'dumbbells', title: 'Dumbbells', description: 'Adjustable or fixed DBs' },
+      { id: 'cables', title: 'Cable Machines', description: 'Cable stack, functional trainer' },
+      { id: 'cardio', title: 'Cardio Machines', description: 'Treadmill, bike, rower, etc.' },
+      { id: 'bands', title: 'Resistance Bands', description: 'Loop bands, tube bands' },
+    ];
+    const LIFTS = [
+      { key: 'squat', label: 'Squat' },
+      { key: 'bench', label: 'Bench Press' },
+      { key: 'deadlift', label: 'Deadlift' },
+      { key: 'ohp', label: 'Overhead Press' },
+      { key: 'row', label: 'Barbell Row' },
+    ];
+    const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const STATUS = [
+      'Analyzing your goals…','Building weekly structure…','Selecting exercises for your equipment…',
+      'Calculating starting loads…','Setting progression rules…','Writing coaching cues…','Finalizing your program…'
+    ];
+    const AI_CARDS = [
+      { title: 'Coaching Tip', body: 'Keep your elbows under the bar on bench. Based on last session, lockout was the limiting factor.' },
+      { title: 'Focus of the Day', body: 'Primary lift: Squat. Secondary: posterior chain. Keep rest full between heavy sets.' },
+      { title: 'This Week', body: 'Volume is up 8% vs last week. Two PRs recorded. Recovery looks solid.' },
+    ];
+    const DEFAULT_SETS = [
+      { setNumber: 1, targetReps: 5, targetWeight: 135, lastWeekWeight: 130, lastWeekReps: 5 },
+      { setNumber: 2, targetReps: 5, targetWeight: 135, lastWeekWeight: 130, lastWeekReps: 5 },
+      { setNumber: 3, targetReps: 5, targetWeight: 135, lastWeekWeight: 130, lastWeekReps: 4 },
+      { setNumber: 4, targetReps: 5, targetWeight: 135, lastWeekWeight: 130, lastWeekReps: 4 },
+      { setNumber: 5, targetReps: 5, targetWeight: 135, lastWeekWeight: 125, lastWeekReps: 5 },
+    ];
+
+    const INITIAL = {
+      goal: null, experience: null, daysPerWeek: 3, trainingDays: [],
+      equipment: [], startingWeights: { squat: null, bench: null, deadlift: null, ohp: null, row: null, unit: 'lbs' },
+      name: ''
+    };
+
+    function load() {
+      try {
+        const raw = localStorage.getItem('overload_v1');
+        if (raw) return JSON.parse(raw);
+      } catch(e) {}
+      return null;
+    }
+    function save(data, screen) {
+      try {
+        localStorage.setItem('overload_v1', JSON.stringify({ data, screen, savedAt: Date.now() }));
+      } catch(e) {}
+    }
+
+    function Logo({ size = 56 }) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          <svg width={size} height={size} viewBox="0 0 64 64">
+            <rect x="8" y="28" width="48" height="8" rx="2" fill={colors.ice} />
+            <rect x="4" y="22" width="8" height="20" rx="1" fill={colors.ice} />
+            <rect x="12" y="24" width="6" height="16" rx="1" fill={colors.iceLight} />
+            <rect x="52" y="22" width="8" height="20" rx="1" fill={colors.ice} />
+            <rect x="46" y="24" width="6" height="16" rx="1" fill={colors.iceLight} />
+            <path d="M32 12 L32 40 M24 20 L32 12 L40 20" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          </svg>
+          <span style={{ fontFamily: font.heading, fontSize: size > 50 ? 28 : 20, letterSpacing: 4, color: '#fff' }}>OVERLOAD</span>
+        </div>
+      );
+    }
+
+    function Btn({ children, onClick, disabled, variant = 'primary', full }) {
+      const base = { borderRadius: 12, padding: '16px 24px', fontWeight: 700, fontSize: 16, width: full ? '100%' : undefined, opacity: disabled ? 0.45 : 1 };
+      const styles = {
+        primary: { ...base, background: colors.ice, color: colors.bg },
+        secondary: { ...base, background: colors.elevated, color: '#fff' },
+        outline: { ...base, background: 'transparent', color: colors.ice, border: `1.5px solid ${colors.ice}` },
+        ghost: { ...base, background: 'transparent', color: colors.ice },
+      };
+      return (
+        <button onClick={onClick} disabled={disabled} style={styles[variant]}
+          onPointerDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
+          onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}>
+          {children}
+        </button>
+      );
+    }
+
+    function Header({ step, onBack }) {
+      return (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px' }}>
+          <button onClick={onBack} style={{ fontSize: 22, color: colors.text2, padding: 8 }}>←</button>
+          <span style={{ fontSize: 13, color: colors.muted, fontWeight: 500 }}>{step}</span>
+        </div>
+      );
+    }
+
+    function Footer({ children }) {
+      return <div style={{ padding: '16px 24px 32px' }}>{children}</div>;
+    }
+
+    function Card({ children, style }) {
+      return (
+        <div style={{ background: colors.bg2, borderRadius: 16, padding: 18, marginBottom: 14, border: `1px solid ${colors.border}`, ...style }}>
+          {children}
+        </div>
+      );
+    }
+
+    const titleStyle = { fontFamily: font.heading, fontSize: 32, letterSpacing: 0.5, marginBottom: 8 };
+    const subStyle = { color: colors.text2, fontSize: 15, lineHeight: 1.45, marginBottom: 28 };
+    const labelStyle = { fontSize: 11, color: colors.ice, letterSpacing: 1.2, fontWeight: 500, marginBottom: 8 };
+    const nudgeStyle = { width: 48, height: 48, borderRadius: 14, background: colors.bg2, border: `1px solid ${colors.border}`, color: colors.ice, fontSize: 24, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' };
+
+    function App() {
+      const saved = load();
+      const [screen, setScreen] = useState(saved?.screen === 'home' || saved?.screen === 'workout' ? 'home' : 'welcome');
+      const [data, setData] = useState(saved?.data || INITIAL);
+
+      // workout
+      const [currentSetIdx, setCurrentSetIdx] = useState(0);
+      const [weight, setWeight] = useState(135);
+      const [elapsed, setElapsed] = useState(0);
+      const [paused, setPaused] = useState(false);
+      const [showRest, setShowRest] = useState(false);
+      const [restLeft, setRestLeft] = useState(180);
+      const [notes, setNotes] = useState('');
+      const [showCoach, setShowCoach] = useState(false);
+      const [cardIdx, setCardIdx] = useState(0);
+      const [statusIdx, setStatusIdx] = useState(0);
+      const [progress, setProgress] = useState(0);
+      const [flash, setFlash] = useState(false);
+      const [showSummary, setShowSummary] = useState(false);
+
+      const update = useCallback((partial) => {
+        setData(prev => {
+          const next = { ...prev, ...partial };
+          return next;
+        });
+      }, []);
+
+      useEffect(() => {
+        if (['home','workout'].includes(screen)) save(data, screen);
+      }, [data, screen]);
+
+      // loading animation
+      useEffect(() => {
+        if (screen !== 'loading') return;
+        setStatusIdx(0); setProgress(0); setFlash(false);
+        const start = Date.now();
+        const duration = 4800;
+        const id = setInterval(() => {
+          const t = (Date.now() - start) / duration;
+          setProgress(Math.min(1, t));
+          setStatusIdx(Math.min(STATUS.length - 1, Math.floor(t * STATUS.length)));
+          if (t >= 1) {
+            clearInterval(id);
+            setFlash(true);
+            setTimeout(() => setScreen('preview'), 350);
+          }
+        }, 40);
+        return () => clearInterval(id);
+      }, [screen]);
+
+      // timers
+      useEffect(() => {
+        if (screen !== 'workout' || paused || showRest) return;
+        const t = setInterval(() => setElapsed(e => e + 1), 1000);
+        return () => clearInterval(t);
+      }, [screen, paused, showRest]);
+
+      useEffect(() => {
+        if (!showRest) return;
+        if (restLeft <= 0) { setShowRest(false); return; }
+        const t = setInterval(() => setRestLeft(r => r - 1), 1000);
+        return () => clearInterval(t);
+      }, [showRest, restLeft]);
+
+      const formatTime = s => {
+        const m = Math.floor(s / 60);
+        return `${m}:${(s % 60).toString().padStart(2, '0')}`;
+      };
+
+      const shell = {
+        minHeight: '100%', background: colors.bg, color: colors.text,
+        display: 'flex', flexDirection: 'column', maxWidth: 430, margin: '0 auto', position: 'relative'
+      };
+
+      // ——— WELCOME ———
+      if (screen === 'welcome') {
+        return (
+          <div style={shell} className="fade-in">
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '48px 28px 32px', justifyContent: 'center' }}>
+              <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'center' }}><Logo size={72} /></div>
+              <h1 style={{ fontFamily: font.heading, fontSize: 28, textAlign: 'center', letterSpacing: 1, marginBottom: 14 }}>
+                Your coach. Your program. Your results.
+              </h1>
+              <p style={{ color: colors.text2, textAlign: 'center', lineHeight: 1.5, marginBottom: 28, fontSize: 15 }}>
+                Overload tells you exactly what to lift, how heavy, and when — so you never have to think, just train.
+              </p>
+              <div style={{ marginBottom: 20 }}>
+                <input
+                  placeholder="Your first name"
+                  value={data.name || ''}
+                  onChange={e => update({ name: e.target.value })}
+                  style={{
+                    width: '100%', background: colors.bg2, border: `1px solid ${colors.border}`,
+                    borderRadius: 12, padding: '14px 16px', color: '#fff', fontSize: 16, marginBottom: 16
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 36 }}>
+                {['AI Pre-plans weights','Set-by-set coaching','Week-over-week adapt','Never guess what to lift'].map(t => (
+                  <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 14, background: colors.bg2, padding: '14px 18px', borderRadius: 12, border: `1px solid ${colors.border}` }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 4, background: colors.ice, flexShrink: 0 }} />
+                    <span style={{ fontWeight: 500 }}>{t}</span>
+                  </div>
+                ))}
+              </div>
+              <Btn full onClick={() => setScreen('goal')}>Get Started</Btn>
+            </div>
+          </div>
+        );
+      }
+
+      // ——— GOAL ———
+      if (screen === 'goal') {
+        return (
+          <div style={shell} className="fade-in">
+            <Header step="1 / 6" onBack={() => setScreen('welcome')} />
+            <div style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px' }} className="hide-scroll">
+              <h1 style={titleStyle}>What's your goal?</h1>
+              <p style={subStyle}>This shapes your program structure, sets, reps, and progression.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {GOALS.map(g => {
+                  const active = data.goal === g.id;
+                  return (
+                    <button key={g.id} onClick={() => update({ goal: g.id })}
+                      style={{ textAlign: 'left', background: active ? colors.card : colors.bg2, border: `1.5px solid ${active ? colors.ice : colors.border}`, borderRadius: 16, padding: 18 }}>
+                      <div style={{ fontWeight: 700, fontSize: 17, color: active ? colors.ice : '#fff', marginBottom: 4 }}>{g.title}</div>
+                      <div style={{ fontSize: 13, color: colors.text2 }}>{g.description}</div>
+                      {active && (
+                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${colors.border}`, fontSize: 12 }}>
+                          <div style={{ color: colors.ice, fontWeight: 500 }}>{g.sets} sets · {g.reps} reps · {g.rest}</div>
+                          <div style={{ color: colors.muted, marginTop: 2 }}>{g.progression}</div>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <Footer><Btn full disabled={!data.goal} onClick={() => setScreen('experience')}>Continue</Btn></Footer>
+          </div>
+        );
+      }
+
+      // ——— EXPERIENCE ———
+      if (screen === 'experience') {
+        return (
+          <div style={shell} className="fade-in">
+            <Header step="2 / 6" onBack={() => setScreen('goal')} />
+            <div style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px' }} className="hide-scroll">
+              <h1 style={titleStyle}>Your experience</h1>
+              <p style={subStyle}>Progression rate, form cues, and program complexity adapt to your level.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {EXPERIENCE.map(l => {
+                  const active = data.experience === l.id;
+                  return (
+                    <button key={l.id} onClick={() => update({ experience: l.id })}
+                      style={{ display: 'flex', alignItems: 'center', gap: 16, textAlign: 'left', background: active ? colors.card : colors.bg2, border: `1.5px solid ${active ? colors.ice : colors.border}`, borderRadius: 16, padding: 18 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: 12, border: `2px solid ${active ? colors.ice : colors.border2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {active && <div style={{ width: 12, height: 12, borderRadius: 6, background: colors.ice }} />}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 17, color: active ? colors.ice : '#fff' }}>{l.title}</div>
+                        <div style={{ fontSize: 13, color: colors.text2, marginTop: 2 }}>{l.description}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <Footer><Btn full disabled={!data.experience} onClick={() => setScreen('availability')}>Continue</Btn></Footer>
+          </div>
+        );
+      }
+
+      // ——— AVAILABILITY ———
+      if (screen === 'availability') {
+        const toggleDay = (day) => {
+          const sel = data.trainingDays;
+          if (sel.includes(day)) update({ trainingDays: sel.filter(d => d !== day) });
+          else if (sel.length < data.daysPerWeek) update({ trainingDays: [...sel, day].sort() });
+        };
+        const can = data.trainingDays.length === data.daysPerWeek;
+        return (
+          <div style={shell} className="fade-in">
+            <Header step="3 / 6" onBack={() => setScreen('experience')} />
+            <div style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px' }} className="hide-scroll">
+              <h1 style={titleStyle}>Training availability</h1>
+              <p style={subStyle}>How many days per week can you train? Then pick the specific days.</p>
+              <div style={{ fontSize: 12, color: colors.text2, letterSpacing: 1, marginBottom: 12, textTransform: 'uppercase' }}>Days per week</div>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 28 }}>
+                {[2,3,4,5,6].map(n => (
+                  <button key={n} onClick={() => update({ daysPerWeek: n, trainingDays: data.trainingDays.slice(0, n) })}
+                    style={{ width: 52, height: 52, borderRadius: 26, background: data.daysPerWeek === n ? colors.ice : colors.bg2, color: data.daysPerWeek === n ? colors.bg : '#fff', fontWeight: 700, fontSize: 18, border: `1.5px solid ${data.daysPerWeek === n ? colors.ice : colors.border}` }}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 12, color: colors.text2, letterSpacing: 1, marginBottom: 12, textTransform: 'uppercase' }}>Select {data.daysPerWeek} day{data.daysPerWeek > 1 ? 's' : ''}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
+                {DAYS.map((label, i) => {
+                  const active = data.trainingDays.includes(i);
+                  const disabled = !active && data.trainingDays.length >= data.daysPerWeek;
+                  return (
+                    <button key={label} onClick={() => toggleDay(i)} disabled={disabled}
+                      style={{ aspectRatio: '1', borderRadius: 12, background: active ? 'rgba(79,195,247,0.2)' : colors.bg2, border: `1.5px solid ${active ? colors.ice : colors.border}`, color: active ? colors.ice : disabled ? colors.muted : colors.text2, fontWeight: 500, fontSize: 13, opacity: disabled ? 0.4 : 1 }}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <Footer><Btn full disabled={!can} onClick={() => setScreen('equipment')}>Continue</Btn></Footer>
+          </div>
+        );
+      }
+
+      // ——— EQUIPMENT ———
+      if (screen === 'equipment') {
+        const toggle = (id) => {
+          const sel = data.equipment;
+          update({ equipment: sel.includes(id) ? sel.filter(e => e !== id) : [...sel, id] });
+        };
+        return (
+          <div style={shell} className="fade-in">
+            <Header step="4 / 6" onBack={() => setScreen('availability')} />
+            <div style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px' }} className="hide-scroll">
+              <h1 style={titleStyle}>Your equipment</h1>
+              <p style={subStyle}>Bodyweight is always available. Select everything else you have access to.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {EQUIPMENT.map(opt => {
+                  const active = data.equipment.includes(opt.id);
+                  return (
+                    <button key={opt.id} onClick={() => toggle(opt.id)}
+                      style={{ textAlign: 'left', position: 'relative', background: active ? colors.card : colors.bg2, border: `1.5px solid ${active ? colors.ice : colors.border}`, borderRadius: 14, padding: 18 }}>
+                      <div style={{ position: 'absolute', top: 16, right: 16, width: 24, height: 24, borderRadius: 6, border: `1.5px solid ${active ? colors.ice : colors.border2}`, background: active ? colors.ice : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: colors.bg, fontWeight: 700, fontSize: 14 }}>
+                        {active ? '✓' : ''}
+                      </div>
+                      <div style={{ fontWeight: 700, color: active ? colors.ice : '#fff', paddingRight: 32 }}>{opt.title}</div>
+                      <div style={{ fontSize: 13, color: colors.text2, marginTop: 2 }}>{opt.description}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ marginTop: 20, padding: 14, background: colors.bg2, borderRadius: 12, borderLeft: `3px solid ${colors.ice}`, fontSize: 13, color: colors.text2, lineHeight: 1.45 }}>
+                Bodyweight exercises are always included. The AI will auto-swap movements if equipment is missing.
+              </div>
+            </div>
+            <Footer><Btn full onClick={() => setScreen('weights')}>Continue</Btn></Footer>
+          </div>
+        );
+      }
+
+      // ——— WEIGHTS ———
+      if (screen === 'weights') {
+        const w = data.startingWeights;
+        const setW = (key, val) => update({ startingWeights: { ...w, [key]: val } });
+        const nudge = (key, delta) => {
+          const cur = w[key] ?? 0;
+          const next = Math.max(0, cur + delta);
+          setW(key, next === 0 ? null : next);
+        };
+        return (
+          <div style={shell} className="fade-in">
+            <Header step="5 / 6" onBack={() => setScreen('equipment')} />
+            <div style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px' }} className="hide-scroll">
+              <h1 style={titleStyle}>Starting weights</h1>
+              <p style={subStyle}>Enter current working weights. “Not sure” lets the AI set a conservative default.</p>
+              <div style={{ display: 'inline-flex', background: colors.bg2, borderRadius: 10, padding: 4, marginBottom: 24 }}>
+                {['lbs','kg'].map(u => (
+                  <button key={u} onClick={() => setW('unit', u)}
+                    style={{ padding: '8px 18px', borderRadius: 8, background: w.unit === u ? colors.ice : 'transparent', color: w.unit === u ? colors.bg : colors.text2, fontWeight: 500, fontSize: 14 }}>
+                    {u}
+                  </button>
+                ))}
+              </div>
+              {LIFTS.map(({ key, label }) => (
+                <div key={key} style={{ marginBottom: 20 }}>
+                  <div style={{ fontWeight: 500, marginBottom: 10 }}>{label}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <button onClick={() => nudge(key, w.unit === 'lbs' ? -5 : -2.5)} style={nudgeStyle}>−</button>
+                    <input type="number" value={w[key] ?? ''} onChange={e => {
+                      const n = parseFloat(e.target.value);
+                      setW(key, isNaN(n) ? null : n);
+                    }} placeholder="—" style={{ flex: 1, height: 44, background: colors.bg2, border: `1px solid ${colors.border}`, borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 18, textAlign: 'center' }} />
+                    <button onClick={() => nudge(key, w.unit === 'lbs' ? 5 : 2.5)} style={nudgeStyle}>+</button>
+                  </div>
+                  <button onClick={() => setW(key, null)} style={{ marginTop: 8, fontSize: 13, color: colors.ice }}>
+                    {w[key] === null ? 'AI default' : 'Not sure'}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <Footer><Btn full onClick={() => setScreen('loading')}>Continue</Btn></Footer>
+          </div>
+        );
+      }
+
+      // ——— LOADING ———
+      if (screen === 'loading') {
+        return (
+          <div style={{ ...shell, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+            <div style={{ animation: 'pulse 1.6s ease-in-out infinite' }}><Logo size={64} /></div>
+            <h2 style={{ fontFamily: font.heading, fontSize: 22, marginTop: 28, letterSpacing: 1 }}>Building your program</h2>
+            <p style={{ color: colors.text2, marginTop: 10, marginBottom: 36 }}>{STATUS[statusIdx]}</p>
+            <div style={{ width: '100%', height: 4, background: colors.elevated, borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ width: `${progress * 100}%`, height: '100%', background: colors.ice, transition: 'width 0.1s' }} />
+            </div>
+            {flash && <div style={{ position: 'fixed', inset: 0, background: colors.ice, opacity: 0.85, zIndex: 50 }} />}
+          </div>
+        );
+      }
+
+      // ——— PREVIEW ———
+      if (screen === 'preview') {
+        const goal = data.goal || 'strength';
+        const splitName = goal === 'strength' ? 'Full Body Strength' : goal === 'muscle' ? 'Upper / Lower' : 'Full Body Circuit';
+        const samples = goal === 'strength'
+          ? [{ name: 'Back Squat', detail: '5×3 · 185 lbs' }, { name: 'Bench Press', detail: '5×3 · 135 lbs' }, { name: 'Barbell Row', detail: '4×5 · 115 lbs' }]
+          : goal === 'muscle'
+          ? [{ name: 'Bench Press', detail: '4×8 · 135 lbs' }, { name: 'Incline DB Press', detail: '3×10 · 50 lbs' }, { name: 'Cable Fly', detail: '3×12 · 30 lbs' }]
+          : [{ name: 'Goblet Squat', detail: '3×15 · 40 lbs' }, { name: 'Push-ups', detail: '3×15 · BW' }, { name: 'DB Row', detail: '3×15 · 35 lbs' }];
+        const name = data.name || 'Athlete';
+        return (
+          <div style={shell} className="fade-in">
+            <div style={{ flex: 1, overflow: 'auto', padding: '28px 24px 24px' }} className="hide-scroll">
+              <h1 style={{ fontFamily: font.heading, fontSize: 32, letterSpacing: 0.5 }}>Ready, {name}.</h1>
+              <p style={{ color: colors.text2, marginTop: 6, marginBottom: 24 }}>Your personalized {splitName.toLowerCase()} program is locked in.</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+                {DAYS.map((d, i) => {
+                  const train = data.trainingDays.includes(i);
+                  return (
+                    <div key={d} style={{ width: 40, height: 40, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: train ? 'rgba(79,195,247,0.2)' : colors.bg2, border: train ? `1px solid ${colors.ice}` : 'none', fontSize: 11, fontWeight: 500, color: train ? colors.ice : colors.muted }}>
+                      {d}
+                    </div>
+                  );
+                })}
+              </div>
+              <Card>
+                <div style={labelStyle}>TODAY’S SESSION</div>
+                <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 4 }}>{splitName}</div>
+                <div style={{ fontSize: 13, color: colors.muted, marginBottom: 14 }}>3 exercises · ~45 min</div>
+                {samples.map(s => (
+                  <div key={s.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: `1px solid ${colors.border}`, fontSize: 14 }}>
+                    <span style={{ fontWeight: 500 }}>{s.name}</span>
+                    <span style={{ color: colors.text2 }}>{s.detail}</span>
+                  </div>
+                ))}
+              </Card>
+              <Card>
+                <div style={labelStyle}>PROGRESSION PLAN</div>
+                <p style={{ fontSize: 14, color: colors.text2, lineHeight: 1.5 }}>
+                  {goal === 'strength' && 'Add 5 lbs to compounds each week when all sets are completed with good form.'}
+                  {goal === 'muscle' && 'Add a set or 1–2 reps first. When you hit the top of the range, increase weight.'}
+                  {goal === 'endurance' && 'Add reps first. Once you hit 20 clean reps, increase load and reset to 15.'}
+                </p>
+              </Card>
+              <Card style={{ borderColor: colors.ice, borderLeftWidth: 3 }}>
+                <div style={labelStyle}>COACH INSIGHT</div>
+                <p style={{ fontSize: 14, color: colors.text2, lineHeight: 1.5 }}>
+                  Based on your {data.experience} level and {data.daysPerWeek}-day schedule, this structure prioritizes recovery while still driving progressive overload.
+                </p>
+              </Card>
+            </div>
+            <Footer>
+              <Btn full onClick={() => { save(data, 'home'); setScreen('home'); }}>Let's Go</Btn>
+            </Footer>
+          </div>
+        );
+      }
+
+      // ——— HOME ———
+      if (screen === 'home') {
+        const today = new Date().getDay();
+        const isTrain = data.trainingDays.includes(today);
+        const name = data.name || 'Athlete';
+        return (
+          <div style={shell} className="fade-in">
+            <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px 40px' }} className="hide-scroll">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <div>
+                  <div style={{ fontFamily: font.heading, fontSize: 26, letterSpacing: 0.5 }}>Hey {name}</div>
+                  <div style={{ fontSize: 13, color: colors.text2, marginTop: 2 }}>
+                    {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                  </div>
+                </div>
+                <div style={{ width: 40, height: 40, borderRadius: 20, background: colors.ice, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: colors.bg }}>
+                  {name.charAt(0).toUpperCase()}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 28 }}>
+                {DAYS.map((label, i) => {
+                  const isToday = i === today;
+                  const train = data.trainingDays.includes(i);
+                  return (
+                    <div key={label} style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: isToday ? colors.ice : colors.muted, marginBottom: 6 }}>{label}</div>
+                      <div style={{ width: 32, height: 32, borderRadius: 10, background: isToday ? colors.ice : train ? colors.elevated : colors.bg2, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: isToday ? colors.bg : '#fff' }}>
+                        {i < today && train ? '✓' : ''}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ background: colors.bg2, borderRadius: 20, padding: 22, border: `1px solid ${colors.border}`, marginBottom: 28 }}>
+                {isTrain ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={labelStyle}>TODAY’S WORKOUT</span>
+                      <span style={{ fontSize: 13, color: colors.muted }}>~45 min</span>
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 4 }}>Upper Body · Strength</div>
+                    <div style={{ fontSize: 13, color: colors.text2, marginBottom: 16 }}>6 exercises · Chest, Shoulders, Triceps</div>
+                    <div style={{ fontSize: 13, color: colors.text2, marginBottom: 6 }}>1. Bench Press · 5×3 @ 135 lbs</div>
+                    <div style={{ fontSize: 13, color: colors.text2, marginBottom: 6 }}>2. Overhead Press · 4×5 @ 95 lbs</div>
+                    <div style={{ fontSize: 13, color: colors.text2, marginBottom: 20 }}>3. Incline DB Press · 3×8 @ 50 lbs</div>
+                    <Btn full onClick={() => {
+                      setCurrentSetIdx(0); setWeight(135); setElapsed(0); setPaused(false); setShowRest(false); setShowSummary(false); setScreen('workout');
+                    }}>Start Workout</Btn>
+                  </>
+                ) : (
+                  <>
+                    <div style={labelStyle}>REST DAY</div>
+                    <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 8 }}>Active Recovery</div>
+                    <p style={{ fontSize: 14, color: colors.text2, lineHeight: 1.45, marginBottom: 16 }}>
+                      Light mobility, 20–30 min walk, or optional band work. Keep intensity low.
+                    </p>
+                    <Btn full variant="outline" onClick={() => setScreen('workout')}>View Recovery Session</Btn>
+                  </>
+                )}
+              </div>
+
+              <div style={{ fontSize: 12, color: colors.muted, letterSpacing: 1, marginBottom: 12, textTransform: 'uppercase' }}>Coach</div>
+              <div style={{ overflowX: 'auto', display: 'flex', gap: 12, scrollSnapType: 'x mandatory' }} className="hide-scroll"
+                onScroll={e => {
+                  const el = e.currentTarget;
+                  setCardIdx(Math.round(el.scrollLeft / (el.clientWidth * 0.85)));
+                }}>
+                {AI_CARDS.map(c => (
+                  <div key={c.title} style={{ minWidth: '85%', scrollSnapAlign: 'start', background: colors.bg2, borderRadius: 16, padding: 20, border: `1px solid ${colors.border}` }}>
+                    <div style={{ fontWeight: 700, color: colors.ice, marginBottom: 8 }}>{c.title}</div>
+                    <div style={{ fontSize: 14, color: colors.text2, lineHeight: 1.45 }}>{c.body}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 12 }}>
+                {AI_CARDS.map((_, i) => (
+                  <div key={i} style={{ height: 6, width: i === cardIdx ? 18 : 6, borderRadius: 3, background: i === cardIdx ? colors.ice : colors.border2, transition: 'width 0.2s' }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // ——— WORKOUT ———
+      if (screen === 'workout') {
+        const sets = DEFAULT_SETS;
+        const current = sets[currentSetIdx];
+        const isLast = currentSetIdx >= sets.length - 1;
+
+        const completeSet = () => {
+          if (isLast) {
+            setShowSummary(true);
+            return;
+          }
+          setShowRest(true);
+          setRestLeft(180);
+          setCurrentSetIdx(i => i + 1);
+          setWeight(sets[currentSetIdx + 1]?.targetWeight ?? 135);
+          setNotes('');
+        };
+
+        if (showSummary) {
+          return (
+            <div style={shell} className="fade-in">
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 32 }}>
+                <div style={{ fontFamily: font.heading, fontSize: 36, textAlign: 'center', marginBottom: 8 }}>Session Complete</div>
+                <p style={{ color: colors.text2, textAlign: 'center', marginBottom: 32 }}>Solid work today.</p>
+                <Card>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <span style={{ color: colors.text2 }}>Duration</span>
+                    <span style={{ fontWeight: 700 }}>{formatTime(elapsed)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <span style={{ color: colors.text2 }}>Sets completed</span>
+                    <span style={{ fontWeight: 700 }}>{sets.length}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: colors.text2 }}>Est. volume</span>
+                    <span style={{ fontWeight: 700 }}>{sets.reduce((a, s) => a + s.targetWeight * s.targetReps, 0).toLocaleString()} lbs</span>
+                  </div>
+                </Card>
+                <Card style={{ borderColor: colors.ice, borderLeftWidth: 3 }}>
+                  <div style={labelStyle}>COACH</div>
+                  <p style={{ fontSize: 14, color: colors.text2, lineHeight: 1.5 }}>
+                    Bench held 135 clean across the sets. Next session we can look at a small load increase if form stays tight.
+                  </p>
+                </Card>
+                <Btn full onClick={() => { setShowSummary(false); setScreen('home'); }}>Done</Btn>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div style={shell} className="fade-in">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderBottom: `1px solid ${colors.border}` }}>
+              <div>
+                <div style={{ fontSize: 13, color: colors.text2 }}>Upper Strength</div>
+                <div style={{ fontWeight: 700 }}>{formatTime(elapsed)}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <button onClick={() => setPaused(p => !p)} style={{ color: colors.text2, fontWeight: 500, fontSize: 14 }}>{paused ? 'Resume' : 'Pause'}</button>
+                <button onClick={() => setScreen('home')} style={{ color: colors.error, fontWeight: 500, fontSize: 14 }}>End</button>
+              </div>
+            </div>
+
+            <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px 32px' }} className="hide-scroll">
+              <h1 style={{ fontFamily: font.heading, fontSize: 48, textAlign: 'center', letterSpacing: 1, lineHeight: 1.05 }}>Bench Press</h1>
+
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 64, margin: '16px 0', position: 'relative' }}>
+                <div style={{ position: 'absolute', width: '65%', height: 8, background: colors.muted, borderRadius: 4 }} />
+                {[45, 25, 10].map((p, i) => (
+                  <div key={'L'+i} style={{ width: 12 + p/4, height: 18 + p/2.5, background: p >= 45 ? colors.ice : colors.iceDark, borderRadius: 3, marginRight: 2, zIndex: 1 }} />
+                ))}
+                <div style={{ width: 12, height: 18, background: colors.text2, borderRadius: 2, margin: '0 4px', zIndex: 2 }} />
+                {[10, 25, 45].map((p, i) => (
+                  <div key={'R'+i} style={{ width: 12 + p/4, height: 18 + p/2.5, background: p >= 45 ? colors.ice : colors.iceDark, borderRadius: 3, marginLeft: 2, zIndex: 1 }} />
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 20 }}>
+                <button onClick={() => setWeight(w => Math.max(0, w - 5))} style={nudgeStyle}>−</button>
+                <input type="number" value={weight} onChange={e => setWeight(parseFloat(e.target.value) || 0)}
+                  style={{ width: 100, fontFamily: font.heading, fontSize: 40, background: 'transparent', border: 'none', color: '#fff', textAlign: 'center' }} />
+                <span style={{ color: colors.muted }}>lbs</span>
+                <button onClick={() => setWeight(w => w + 5)} style={nudgeStyle}>+</button>
+              </div>
+
+              <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, fontSize: 18, color: colors.ice }}>Set {current?.setNumber ?? 1} / {sets.length}</div>
+                <div style={{ marginTop: 4 }}>Target: {current?.targetReps ?? 5} reps</div>
+                {current?.lastWeekWeight != null && (
+                  <div style={{ fontSize: 13, color: colors.muted, marginTop: 4 }}>Last week: {current.lastWeekWeight} lbs × {current.lastWeekReps}</div>
+                )}
+              </div>
+
+              <div style={{ background: colors.bg2, borderRadius: 12, padding: 14, marginBottom: 16, borderLeft: `3px solid ${colors.ice}`, fontSize: 13, color: colors.text2, lineHeight: 1.45 }}>
+                Based on last week, keep 135 and drive through the floor of the press. Controlled eccentric.
+              </div>
+
+              <input placeholder="Notes (optional)" value={notes} onChange={e => setNotes(e.target.value)}
+                style={{ width: '100%', background: colors.bg2, border: `1px solid ${colors.border}`, borderRadius: 12, padding: 14, color: '#fff', marginBottom: 20, fontSize: 14 }} />
+
+              <Btn full onClick={completeSet}>{isLast ? 'Finish Exercise' : 'Complete Set'}</Btn>
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 14 }}>
+                <button onClick={() => setShowCoach(true)} style={{ flex: 1, border: `1.5px solid ${colors.border2}`, borderRadius: 12, padding: 12, color: colors.ice, fontWeight: 500, fontSize: 14 }}>Ask Coach</button>
+                <button style={{ flex: 1, border: `1.5px solid ${colors.border2}`, borderRadius: 12, padding: 12, color: colors.ice, fontWeight: 500, fontSize: 14 }}>Up Next</button>
+              </div>
+
+              {!isLast && sets[currentSetIdx + 1] && (
+                <div style={{ marginTop: 16, background: colors.bg2, borderRadius: 12, padding: 14, display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, color: colors.ice, letterSpacing: 1, fontWeight: 500 }}>NEXT</span>
+                  <span style={{ fontSize: 13, color: colors.text2 }}>
+                    Set {sets[currentSetIdx + 1].setNumber} · {sets[currentSetIdx + 1].targetWeight} lbs × {sets[currentSetIdx + 1].targetReps}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {showRest && (
+              <div style={{ position: 'fixed', inset: 0, background: colors.bg, zIndex: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, maxWidth: 430, margin: '0 auto' }}>
+                <div style={{ fontFamily: font.heading, fontSize: 22, color: colors.text2, marginBottom: 24 }}>Rest</div>
+                <div style={{ width: 180, height: 180, borderRadius: 90, border: `8px solid ${colors.ice}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 28 }}>
+                  <span style={{ fontFamily: font.heading, fontSize: 48 }}>{formatTime(restLeft)}</span>
+                </div>
+                <div style={{ color: colors.text2, marginBottom: 8 }}>Completed set · {weight} lbs</div>
+                <div style={{ color: colors.ice, fontWeight: 500, fontSize: 14, marginBottom: 32 }}>
+                  Up next: {sets[currentSetIdx]?.targetWeight} lbs × {sets[currentSetIdx]?.targetReps}
+                </div>
+                <button onClick={() => setShowRest(false)} style={{ color: colors.muted, fontWeight: 500 }}>Skip Rest</button>
+              </div>
+            )}
+
+            {showCoach && (
+              <div style={{ position: 'fixed', inset: 0, background: colors.overlay, zIndex: 50, display: 'flex', alignItems: 'flex-end', maxWidth: 430, margin: '0 auto' }} onClick={() => setShowCoach(false)}>
+                <div style={{ width: '100%', background: colors.bg2, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: '28px 24px 40px' }} onClick={e => e.stopPropagation()}>
+                  <div style={{ fontFamily: font.heading, fontSize: 22, color: colors.ice, marginBottom: 12 }}>Coach</div>
+                  <p style={{ fontSize: 15, lineHeight: 1.55, marginBottom: 24 }}>
+                    Based on last week you hit 4 reps at 130. Keep 135 today and focus on a controlled 2-second eccentric. If the last set feels above RPE 8, leave 1 in the tank.
+                  </p>
+                  <Btn full onClick={() => setShowCoach(false)}>Got it</Btn>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      return null;
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
